@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tier List Maker</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    :root {
+      --bg-light: #f0f0f0;
+      --bg-dark: #1e1e1e;
+      --text-light: #333;
+      --text-dark: #eee;
+    }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      transition: background 0.3s, color 0.3s;
+    }
+    .light {
+      background: var(--bg-light);
+      color: var(--text-light);
+    }
+    .dark {
+      background: var(--bg-dark);
+      color: var(--text-dark);
+    }
+    header {
+      padding: 1em;
+      text-align: center;
+      font-size: 2em;
+    }
+    .controls, .published-list {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 1em;
+      margin: 1em;
+    }
+    button, input {
+      padding: 0.5em;
+      border: none;
+      border-radius: 5px;
+      font-size: 1em;
+    }
+    .tiers {
+      max-width: 1000px;
+      margin: auto;
+      padding: 1em;
+    }
+    .tier {
+      display: flex;
+      align-items: center;
+      margin-bottom: 1em;
+      padding: 0.5em;
+      border-radius: 8px;
+    }
+    .tier-label {
+      width: 100px;
+      font-weight: bold;
+      margin-right: 1em;
+    }
+    .tier-items {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5em;
+      flex: 1;
+      min-height: 60px;
+    }
+    .item {
+      width: 60px;
+      height: 60px;
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: grab;
+    }
+    .item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .rainbow-border {
+      position: fixed;
+      top: 0; left: 0; bottom: 0; right: 0;
+      pointer-events: none;
+      z-index: 999;
+      box-shadow: 0 0 15px 5px red;
+      animation: rainbowGlow 5s infinite linear;
+    }
+    @keyframes rainbowGlow {
+      0% { box-shadow: 0 0 15px 5px red; }
+      16% { box-shadow: 0 0 25px 10px orange; }
+      32% { box-shadow: 0 0 30px 15px yellow; }
+      48% { box-shadow: 0 0 35px 20px green; }
+      64% { box-shadow: 0 0 40px 25px blue; }
+      80% { box-shadow: 0 0 45px 30px indigo; }
+      100% { box-shadow: 0 0 50px 35px violet; }
+    }
+    .tier input[type="color"] {
+      margin-right: 0.5em;
+    }
+    .tier input[type="text"] {
+      width: 80px;
+    }
+  </style>
+</head>
+<body class="light">
+  <div class="rainbow-border"></div>
+  <header>Tier List Maker</header>
+
+  <div class="controls">
+    <input type="text" id="tierName" placeholder="Tier name" />
+    <input type="color" id="tierColor" />
+    <button onclick="addTier()">Add Tier</button>
+    <input type="file" id="imgUpload" accept="image/*" multiple />
+    <input type="text" id="listTitle" placeholder="Tierlist Title" />
+    <button onclick="saveTierList()">Publish</button>
+    <button onclick="exportAsImage()">Export as PNG</button>
+    <button onclick="toggleTheme()">🌙/☀️</button>
+  </div>
+
+  <div class="tiers" id="tierContainer"></div>
+
+  <h2 style="text-align:center">Published Tierlists</h2>
+  <div class="published-list" id="publishedList"></div>
+
+  <script>
+    let isDark = false;
+    const tierContainer = document.getElementById("tierContainer");
+    const imgUpload = document.getElementById("imgUpload");
+
+    function addTier(label = "", color = "#cccccc", items = []) {
+      const tier = document.createElement("div");
+      tier.className = "tier";
+      tier.style.background = color;
+      tier.innerHTML = `
+        <input type="color" value="${color}" onchange="this.parentElement.style.background=this.value">
+        <input type="text" value="${label}" class="tier-label">
+        <button onclick="this.parentElement.remove()">❌</button>
+        <div class="tier-items" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+      `;
+      const itemContainer = tier.querySelector(".tier-items");
+      items.forEach(src => addItemToTier(itemContainer, src));
+      tierContainer.appendChild(tier);
+      document.getElementById("tierName").value = "";
+    }
+
+    function toggleTheme() {
+      isDark = !isDark;
+      document.body.className = isDark ? "dark" : "light";
+    }
+
+    function allowDrop(e) {
+      e.preventDefault();
+    }
+
+    function drag(e) {
+      e.dataTransfer.setData("text/plain", e.target.outerHTML);
+      e.target.remove();
+    }
+
+    function drop(e) {
+      e.preventDefault();
+      const html = e.dataTransfer.getData("text/plain");
+      const temp = document.createElement("div");
+      temp.innerHTML = html;
+      const el = temp.firstChild;
+      el.ondragstart = drag;
+      e.target.appendChild(el);
+    }
+
+    function addItemToTier(container, src) {
+      const div = document.createElement("div");
+      div.className = "item draggable";
+      div.draggable = true;
+      div.ondragstart = drag;
+      div.innerHTML = `<img src="${src}" alt="">`;
+      container.appendChild(div);
+    }
+
+    imgUpload.addEventListener("change", function() {
+      Array.from(imgUpload.files).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const firstTier = document.querySelector(".tier-items");
+          if (firstTier) addItemToTier(firstTier, e.target.result);
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+
+    function exportAsImage() {
+      html2canvas(document.getElementById("tierContainer")).then(canvas => {
+        const link = document.createElement("a");
+        link.download = "tierlist.png";
+        link.href = canvas.toDataURL();
+        link.click();
+      });
+    }
+
+    function saveTierList() {
+      const tiers = [];
+      document.querySelectorAll(".tier").forEach(tier => {
+        const label = tier.querySelector(".tier-label").value;
+        const color = tier.querySelector("input[type=color]").value;
+        const imgs = Array.from(tier.querySelectorAll("img")).map(img => img.src);
+        tiers.push({ label, color, items: imgs });
+      });
+      const data = {
+        name: document.getElementById("listTitle").value || "Untitled Tierlist",
+        tiers
+      };
+      fetch("/api/tierlists", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      }).then(res => res.json())
+        .then(json => {
+          alert("Published!");
+          loadPublished();
+        });
+    }
+
+    function loadPublished() {
+      fetch("/api/tierlists")
+        .then(res => res.json())
+        .then(lists => {
+          const pub = document.getElementById("publishedList");
+          pub.innerHTML = "";
+          lists.reverse().forEach(list => {
+            const div = document.createElement("div");
+            div.innerHTML = `<button onclick="loadTierlist('${list.id}')">${list.name}</button>`;
+            pub.appendChild(div);
+          });
+        });
+    }
+
+    function loadTierlist(id) {
+      fetch(`/api/tierlists/${id}`)
+        .then(res => res.json())
+        .then(data => {
+          tierContainer.innerHTML = "";
+          document.getElementById("listTitle").value = data.name;
+          data.tiers.forEach(t => addTier(t.label, t.color, t.items));
+        });
+    }
+
+    loadPublished();
+  </script>
+</body>
+</html>
